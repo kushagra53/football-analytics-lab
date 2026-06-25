@@ -1,0 +1,2 @@
+pandas
+datafc == 2.7.0
