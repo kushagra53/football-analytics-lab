@@ -34,7 +34,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
-from datafc import league_player_stats_data, seasons_data
+from datafc import seasons_data
+from datafc.utils._client import SofascoreClient
+from datafc.utils._config import API_URLS
+from datafc.utils._validate import validate_source
+from datafc.sofascore.fetch_league_player_stats_data import _validate_lps_params
+from datafc.sofascore._parsers import parse_league_player_stats_records
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("sofascore_ingest")
@@ -106,21 +111,75 @@ def fetch_league_player_stats(
         f"tournament_id={tournament_id}, season_id={season_id}"
     )
 
-    df = league_player_stats_data(
-        tournament_id=tournament_id,
-        season_id=season_id,
-        accumulation="total",  # raw totals; per-90 math happens in our own cleaning stage
-        fields=ALL_FIELDS,
-        order="-minutesPlayed",
-        max_players=max_players,
-        data_source=data_source,
+    # NOTE: datafc's built-in league_player_stats_data() paginates using a
+    # `page=` query param, but the live SofaScore API ignores it and always
+    # returns page 1 -- confirmed by direct testing (every "page" returned
+    # identical results), which silently produced 100% duplicate rows.
+    # The API DOES respect `offset=` (player-count based, not page-based),
+    # so we drive pagination ourselves here, reusing datafc's validated
+    # field/param handling and response parser.
+    validate_source(data_source)
+    selected_fields, fields_param = _validate_lps_params(
+        accumulation="total", position=None, fields=ALL_FIELDS, order="-minutesPlayed"
     )
+    base = API_URLS[data_source]
+    page_size = min(max_players, 100)
+
+    records = []
+    offset = 0
+    with SofascoreClient(rate_limit=2.0) as client:
+        while len(records) < max_players:
+            url = (
+                f"{base}/api/v1/unique-tournament/{tournament_id}/season/{season_id}/statistics"
+                f"?limit={page_size}&order=-minutesPlayed&accumulation=total"
+                f"&fields={fields_param}&offset={offset}"
+            )
+            data = client.get(url)
+            page_records = parse_league_player_stats_records(data, tournament_id, season_id, selected_fields)
+            if not page_records:
+                break
+            records.extend(page_records)
+            if len(page_records) < page_size:
+                break  # last page was a partial page -- nothing more to fetch
+            offset += page_size
+
+    df = pd.DataFrame(records[:max_players])
 
     df["league"] = league
     df["season"] = season_label
     df["scraped_at"] = datetime.now(timezone.utc).isoformat()
     return df
 
+
+def fetch_squad_info(
+    league: str, season_label: str, data_source: str = DEFAULT_DATA_SOURCE
+) -> pd.DataFrame:
+    """Fetch position / age / height / market value for every player in the
+    league, via standings_data -> squad_data (one call per team, ~20 calls
+    per league -- much cheaper than a per-player profile call for ~600
+    players). This is what makes position-grouped percentile cohorts
+    (CB vs FB vs everyone-tagged-'D') possible later.
+
+    Note: 'position' here is SofaScore's broad group (G/D/M/F), not a
+    detailed sub-position. Detailed positions (CB vs RB, etc.) require a
+    separate per-player call (datafc.player_data -> position_detailed) --
+    deliberately deferred until the percentile engine actually needs that
+    granularity, rather than paying ~600 extra requests for it now.
+    """
+    if league not in LEAGUES:
+        raise ValueError(f"Unknown league '{league}'. Choices: {list(LEAGUES)}")
+
+    tournament_id = LEAGUES[league]
+    season_id = resolve_season_id(tournament_id, season_label, data_source=data_source)
+
+    log.info(f"Fetching squad info for {league} ({season_label})")
+    standings = standings_data(tournament_id, season_id, data_source=data_source)
+    squads = squad_data(standings, data_source=data_source)
+
+    squads["league"] = league
+    squads["season"] = season_label
+    squads["scraped_at"] = datetime.now(timezone.utc).isoformat()
+    return squads
 
 def save_csv(df: pd.DataFrame, league: str, table_name: str, raw_dir: Path, snapshot: bool = True) -> Path:
     """Write the latest CSV (overwritten each run) and a dated snapshot
@@ -140,3 +199,7 @@ def save_csv(df: pd.DataFrame, league: str, table_name: str, raw_dir: Path, snap
         df.to_csv(snap_dir / f"{table_name}_{date_str}.csv", index=False)
 
     return latest_path
+
+
+
+

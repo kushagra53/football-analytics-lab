@@ -151,6 +151,35 @@ def load_squad(league: str) -> pd.DataFrame:
     return squad_df[[c for c in keep_cols if c in squad_df.columns]].drop_duplicates(subset="player_id")
 
 
+def load_authoritative_teams(league: str) -> pd.DataFrame:
+    """The real teams competing in the league (from standings_data), used to
+    drop promotion/relegation playoff sides that leak into league_stats.csv
+    under the same tournament_id (see fetch_squad.py docstring)."""
+    teams_path = RAW_DIR / league / "teams.csv"
+    if not teams_path.exists():
+        log.warning(
+            f"{teams_path} not found -- skipping playoff-team filtering. "
+            f"Run fetch_squad.py for '{league}' to enable it."
+        )
+        return None
+    return pd.read_csv(teams_path)
+
+
+def filter_to_league_teams(df: pd.DataFrame, teams_df: pd.DataFrame) -> pd.DataFrame:
+    if teams_df is None:
+        return df
+    valid_ids = set(teams_df["team_id"])
+    before = len(df)
+    # multi_team rows have team_id from the LAST team listed (see merge_multi_team_rows) --
+    # check membership via team_id, not the joined team_name string.
+    out = df[df["team_id"].isin(valid_ids)].copy()
+    dropped = before - len(out)
+    if dropped:
+        log.info(f"Dropped {dropped} row(s) whose team is not an official league member this season "
+                  f"(likely promotion/relegation playoff leakage)")
+    return out
+
+
 def clean_league(league: str, min_minutes: int = DEFAULT_MIN_MINUTES) -> pd.DataFrame:
     stats_path = RAW_DIR / league / "league_stats.csv"
     if not stats_path.exists():
@@ -161,6 +190,9 @@ def clean_league(league: str, min_minutes: int = DEFAULT_MIN_MINUTES) -> pd.Data
 
     df = merge_multi_team_rows(df)
     log.info(f"{len(df)} rows after multi-team merge")
+
+    teams_df = load_authoritative_teams(league)
+    df = filter_to_league_teams(df, teams_df)
 
     df = add_per90_columns(df)
 
