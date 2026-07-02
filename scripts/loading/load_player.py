@@ -1,5 +1,5 @@
 import pandas as pd
-from db import get_connection
+from scripts.loading.db import get_connection
 from pathlib import Path
 
 DATA_DIR = Path("data/processed")
@@ -45,4 +45,4 @@ def load_players():
     conn.close()
 
 if __name__ == "__main__":
-    load_players()
+   load_players()

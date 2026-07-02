@@ -1,0 +1,44 @@
+import pandas as pd
+from db import get_connection
+from pathlib import Path
+
+DATA_DIR = Path("data/raw")
+
+def load_teams():
+    conn = get_connection()
+    cur = conn.cursor()
+    
+    for csv_path in DATA_DIR.glob("*/teams.csv"):
+        print(f"Loading {csv_path} into database...")
+        df= pd.read_csv(csv_path)
+
+
+        for index, row in df.iterrows():
+            values = (
+            int(row["team_id"]),
+            row["team_name"],
+            row["league"]
+            )
+
+            try:
+              cur.execute(
+            """
+            INSERT INTO teams
+            (team_id, team_name, league)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (team_id)
+            DO NOTHING;
+            """,
+            values,
+        )
+            except Exception as e:
+               print(f"Failed in {csv_path} at row {index}")
+               print(values)
+               raise
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+if __name__ == "__main__":
+   load_teams()
