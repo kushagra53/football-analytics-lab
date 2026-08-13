@@ -63,4 +63,35 @@ def get_players(
 
     return players
 
+@router.get("/{player_id}")
+def get_player(player_id: int):
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+    cursor.execute("""
+        SELECT
+        p.player_id,
+        p.player_name,
+        p.player_country,
+        p.height,
+        p.preferred_foot,
+        ps.team_id,
+        ps.league,
+        ps.season,
+        ps.position,
+        ps.age,
+        ps.minutes_played
+        FROM players p
+        JOIN player_season_stats ps
+        ON p.player_id = ps.player_id
+        WHERE p.player_id = %s
+    """, (player_id,))
+
+    player_seasons = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return player_seasons
+ 
 
