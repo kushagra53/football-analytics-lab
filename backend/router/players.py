@@ -1,6 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from scripts.loading.db import get_connection
 from psycopg2.extras import RealDictCursor
+from backend.schemas import Player
 
 router= APIRouter(prefix="/players")
 
@@ -63,7 +64,7 @@ def get_players(
 
     return players
 
-@router.get("/{player_id}")
+@router.get("/{player_id}", response_model=Player)
 def get_player(player_id: int):
     conn = get_connection()
     cursor = conn.cursor(cursor_factory=RealDictCursor)
@@ -89,9 +90,36 @@ def get_player(player_id: int):
 
     player_seasons = cursor.fetchall()
 
+# this is to merge seasons of a single player, if a player has a single season 
+
+    if not player_seasons:
+        raise HTTPException(status_code=404, detail="Player not found")
+
+    player = player_seasons[0]
+
+    seasons = []
+
+    for rows in player_seasons:
+        seasons.append({
+            "team_id": rows["team_id"],
+            "league": rows["league"],
+            "season": rows["season"],
+            "position": rows["position"],
+            "age": rows["age"],
+            "minutes_played": rows["minutes_played"]
+        })
+
+
     cursor.close()
     conn.close()
 
-    return player_seasons
+    return {
+    "player_id": player["player_id"],
+    "player_name": player["player_name"],
+    "player_country": player["player_country"],
+    "height": player["height"],
+    "preferred_foot": player["preferred_foot"],
+    "seasons": seasons
+}
  
 
