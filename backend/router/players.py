@@ -121,5 +121,3 @@ def get_player(player_id: int):
     "preferred_foot": player["preferred_foot"],
     "seasons": seasons
 }
- 
-
