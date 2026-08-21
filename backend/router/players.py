@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from scripts.loading.db import get_connection
 from psycopg2.extras import RealDictCursor
-from backend.schemas import Player
+from backend.schemas import Player, PlayerStats
 
 router= APIRouter(prefix="/players")
 
@@ -121,3 +121,43 @@ def get_player(player_id: int):
     "preferred_foot": player["preferred_foot"],
     "seasons": seasons
 }
+
+@router.get("/{player_id}/stats", response_model=PlayerStats)
+def get_playerstats(player_id: int, league: str, season: str):
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+    query = """
+    SELECT
+    ps.goals,
+    ps.assists,
+    ps.expected_goals,
+    ps.expected_assists,
+    ps.goals_assists_sum,
+    ps.total_shots,
+    ps.shots_on_target,
+    ps.successful_dribbles,
+    ps.tackles,
+    ps.interceptions,
+    ps.clearances,
+    ps.key_passes,
+    ps.minutes_played,
+    ps.rating
+    FROM player_season_stats ps
+    WHERE ps.player_id = %s
+    AND ps.league = %s
+    AND ps.season = %s
+    """
+
+    cursor.execute(query, (player_id, league, season))
+    stats = cursor.fetchone()
+
+    cursor.close()
+    conn.close()
+
+    if stats is None:
+        raise HTTPException(status_code=404, detail="you wont find julius caesar here nigga")
+
+    return stats
+
+    
