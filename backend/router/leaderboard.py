@@ -5,7 +5,7 @@ from psycopg2.extras import RealDictCursor
 router = APIRouter(prefix="/leaderboard")
 
 @router.get("")
-def get_leaderboard(stat:str, league:str | None=None , season:str | None= None):
+def get_leaderboard(stat:str, league:str, season:str):
 
     conn = get_connection()
     cursor = conn.cursor(cursor_factory=RealDictCursor)
@@ -28,24 +28,13 @@ def get_leaderboard(stat:str, league:str | None=None , season:str | None= None):
     FROM players p
     JOIN player_season_stats ps
         ON p.player_id = ps.player_id
-    """
-    condition = []
-    params = []
+    WHERE ps.league = %s
+    AND ps.season = %s
+    ORDER BY {column} DESC
+    LIMIT 10
+"""
 
-    if league is not None:
-        condition.append("ps.league = %s")
-        params.append(league)
-
-    if season is not None:
-        condition.append("ps.season = %s")
-        params.append(season)
-
-    if condition:
-        query += " WHERE " + " AND ".join(condition)
-
-    query += f"ORDER BY {column} DESC LIMIT 10" 
-
-    cursor.execute(query, tuple(params))
+    cursor.execute(query, (league, season))
     leaderboard= cursor.fetchall()
 
     cursor.close()

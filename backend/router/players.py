@@ -156,8 +156,10 @@ def get_playerstats(player_id: int, league: str, season: str):
     conn.close()
 
     if stats is None:
-        raise HTTPException(status_code=404, detail="you wont find julius caesar here nigga")
+        raise HTTPException(status_code=404, detail="cmon dude why would i add irrelevant player to the dataset")
 
     return stats
+
+
 
     

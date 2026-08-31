@@ -12,3 +12,4 @@ def get_connection():
         port=5432
     )
     return conn
+
