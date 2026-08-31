@@ -64,6 +64,34 @@ def get_players(
 
     return players
 
+@router.get("/search")
+def search_players(name:str):
+    conn= get_connection()
+    cursor=conn.cursor(cursor_factory=RealDictCursor)
+
+    query="""
+        SELECT 
+            player_id,
+            player_name,
+            player_country,
+            preferred_foot
+        FROM players
+        WHERE player_name ILIKE %s
+        LIMIT 10
+        """
+
+    cursor.execute(query, (f"%{name}%",))
+
+    player=cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return player
+
+
+
+
 @router.get("/{player_id}", response_model=Player)
 def get_player(player_id: int):
     conn = get_connection()
