@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from scripts.loading.db import get_connection
 from psycopg2.extras import RealDictCursor
-from backend.schemas import Player, PlayerStats
+from backend.schemas import Player, PlayerStats,PlayerComparisions
 
 router= APIRouter(prefix="/players")
 
@@ -89,8 +89,94 @@ def search_players(name:str):
 
     return player
 
+@router.get("/compare", response_model=PlayerComparisions)
+def compare_players(player1:int, player2:int,league:str,season:str):
+    conn=get_connection()
+    cursor=conn.cursor(cursor_factory=RealDictCursor)
 
+    query = """
+    SELECT
+        p.player_id,
+        p.player_name,
+        ps.goals,
+        ps.assists,
+        ps.expected_goals,
+        ps.expected_assists,
+        ps.goals_assists_sum,
+        ps.total_shots,
+        ps.shots_on_target,
+        ps.successful_dribbles,
+        ps.tackles,
+        ps.interceptions,
+        ps.clearances,
+        ps.key_passes,
+        ps.minutes_played,
+        ps.rating
+    FROM players p
+    JOIN player_season_stats ps
+        ON p.player_id = ps.player_id
+    WHERE ps.player_id IN (%s, %s)
+    AND ps.league = %s
+    AND ps.season = %s
+    """
 
+    if player1 == player2:
+        raise HTTPException(status_code=400, detail="Cannot compare a player with themselves")
+    cursor.execute(query,(player1,player2,league,season))
+    players=cursor.fetchall()
+
+    if len(players)!=2:
+        raise HTTPException(status_code=404, detail="One or both players not found for this league and season")
+
+    player_map = {row["player_id"]: row for row in players}
+
+    cursor.close()
+    conn.close()
+    
+        ###this part is copy pasted but dw you know it all you built this whole thing this is your rome.
+    return {
+    "player1": {
+        "player_id": player1,
+        "player_name": player_map[player1]["player_name"],
+        "stats": {
+            "goals": player_map[player1]["goals"],
+            "assists": player_map[player1]["assists"],
+            "expected_goals": player_map[player1]["expected_goals"],
+            "expected_assists": player_map[player1]["expected_assists"],
+            "goals_assists_sum": player_map[player1]["goals_assists_sum"],
+            "total_shots": player_map[player1]["total_shots"],
+            "shots_on_target": player_map[player1]["shots_on_target"],
+            "successful_dribbles": player_map[player1]["successful_dribbles"],
+            "tackles": player_map[player1]["tackles"],
+            "interceptions": player_map[player1]["interceptions"],
+            "clearances": player_map[player1]["clearances"],
+            "key_passes": player_map[player1]["key_passes"],
+            "minutes_played": player_map[player1]["minutes_played"],
+            "rating": player_map[player1]["rating"]
+        }
+    },
+
+    "player2": {
+        "player_id": player2,
+        "player_name": player_map[player2]["player_name"],
+        "stats": {
+            "goals": player_map[player2]["goals"],
+            "assists": player_map[player2]["assists"],
+            "expected_goals": player_map[player2]["expected_goals"],
+            "expected_assists": player_map[player2]["expected_assists"],
+            "goals_assists_sum": player_map[player2]["goals_assists_sum"],
+            "total_shots": player_map[player2]["total_shots"],
+            "shots_on_target": player_map[player2]["shots_on_target"],
+            "successful_dribbles": player_map[player2]["successful_dribbles"],
+            "tackles": player_map[player2]["tackles"],
+            "interceptions": player_map[player2]["interceptions"],
+            "clearances": player_map[player2]["clearances"],
+            "key_passes": player_map[player2]["key_passes"],
+            "minutes_played": player_map[player2]["minutes_played"],
+            "rating": player_map[player2]["rating"]
+        }
+    }
+}
 
 @router.get("/{player_id}", response_model=Player)
 def get_player(player_id: int):
@@ -184,10 +270,6 @@ def get_playerstats(player_id: int, league: str, season: str):
     conn.close()
 
     if stats is None:
-        raise HTTPException(status_code=404, detail="cmon dude why would i add irrelevant player to the dataset")
+        raise HTTPException(status_code=404, detail="cmon dude why would i add irrelevant player to the dataset, i think i'm funny")
 
     return stats
-
-
-
-    

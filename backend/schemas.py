@@ -32,3 +32,12 @@ class PlayerStats(BaseModel):
     minutes_played: int
     rating: float
 
+class PlayerComaparisionEntry(BaseModel):
+    player_id:int
+    player_name:str
+    stats:PlayerStats
+
+class PlayerComparisions(BaseModel):
+    player1:PlayerComaparisionEntry
+    player2:PlayerComaparisionEntry
+
