@@ -23,7 +23,12 @@ app.include_router(leaderboard.router)
 def read_root():
     return {"status": "API is running!"}
 
+@app.get("/health")
+def health_check():
+    conn = get_connection()
+    conn.close()
 
+    return {"status": "healthy"}
 
 
 
