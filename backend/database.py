@@ -1,15 +1,18 @@
+import os
 import psycopg2
-from psycopg2.extra import RealDictCursor 
-# RealDictCursor allows us to get results as dictionaries instead of tuples which makes it easier to work with JSON files.
+from psycopg2.extras import RealDictCursor
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def get_connection():
-    conn = psycopg2.connect(
-        host="localhost",
-        database="football_analytics",
-        user="postgres",
-        password="kusu9247",
-        cursor_factory=RealDictCursor,
-        port=5432
+    conn= psycopg2.connect(
+        host=os.getenv("DB_HOST"),
+        database=os.getenv("DB_NAME"),
+        user=os.getenv("DB_USER"),
+        password= os.getenv("DB_PASSWORD"),
+        port=os.getenv("DB_PORT"),
+        cursor_factory=RealDictCursor
     )
-    return conn
 
+    return conn
