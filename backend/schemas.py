@@ -41,3 +41,14 @@ class PlayerComparisions(BaseModel):
     player1:PlayerComaparisionEntry
     player2:PlayerComaparisionEntry
 
+class PlayerPercentile(BaseModel):
+    metric:str
+    cohort:str
+    league:str
+    percentile:float
+
+class PlayerPerecentileResponse(BaseModel):
+    player_id:int
+    cohort:str
+    percentiles:list[PlayerPercentile]
+

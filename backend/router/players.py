@@ -1,7 +1,9 @@
 from fastapi import APIRouter, HTTPException
 from scripts.loading.db import get_connection
 from psycopg2.extras import RealDictCursor
-from backend.schemas import Player, PlayerStats,PlayerComparisions
+from backend.schemas import Player, PlayerStats,PlayerComparisions,PlayerPerecentileResponse
+from backend.config import percentiles_stats
+from backend.config.percentiles_stats import POSITION_STATS
 
 router= APIRouter(prefix="/players")
 
@@ -273,3 +275,45 @@ def get_playerstats(player_id: int, league: str, season: str):
         raise HTTPException(status_code=404, detail="cmon dude why would i add irrelevant player to the dataset, i think i'm funny")
 
     return stats
+
+### understand this endpoint once again how it is working.
+@router.get(
+    "/{player_id}/percentiles",
+    response_model=PlayerPerecentileResponse
+)
+def get_player_percentiles(
+    player_id: int,
+    cohort: str = "global"
+):
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+    query = """
+        SELECT
+            metric,
+            cohort,
+            league,
+            percentile
+        FROM player_percentile
+        WHERE player_id = %s
+        AND cohort = %s
+        ORDER BY metric
+    """
+
+    cursor.execute(query, (player_id, cohort))
+    percentiles = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    if not percentiles:
+        raise HTTPException(
+            status_code=404,
+            detail="Percentiles not found for this player and cohort"
+        )
+
+    return {
+        "player_id": player_id,
+        "cohort": cohort,
+        "percentiles": percentiles
+    }
