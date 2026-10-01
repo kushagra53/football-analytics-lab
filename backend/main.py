@@ -4,6 +4,7 @@ from .router import players
 from .router import teams
 from .router import leaderboard
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import HTTPException
 
 app = FastAPI()
 
@@ -25,11 +26,17 @@ def read_root():
 
 @app.get("/health")
 def health_check():
-    conn = get_connection()
-    conn.close()
+    try:
+        conn = get_connection()
+        conn.close()
 
-    return {"status": "healthy"}
+        return {"status": "healthy"}
 
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail="Database unavailable"
+        )
 
 
 

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from scripts.loading.db import get_connection
 from psycopg2.extras import RealDictCursor
 from backend.schemas import Player, PlayerStats,PlayerComparisions,PlayerPerecentileResponse
@@ -13,6 +13,8 @@ def get_players(
     league: str | None = None,
     team_id: int | None = None,
     min_minutes: int | None = None,
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
 ):
     conn = get_connection()
     cursor = conn.cursor(cursor_factory=RealDictCursor)
@@ -56,6 +58,10 @@ def get_players(
 
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
+
+    query += " ORDER BY p.player_id"
+    query += " LIMIT %s OFFSET %s"
+    params.extend([limit, offset])
 
     cursor.execute(query, tuple(params))
 
