@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Query
-from scripts.loading.db import get_connection
+from ..database import get_connection
 from psycopg2.extras import RealDictCursor
 from backend.schemas import Player, PlayerStats,PlayerComparisions,PlayerPerecentileResponse
 from backend.config import percentiles_stats

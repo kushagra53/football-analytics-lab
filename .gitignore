@@ -24,3 +24,5 @@ Thumbs.db
 
 data/raw/
 data/processed/
+
+*.dump
