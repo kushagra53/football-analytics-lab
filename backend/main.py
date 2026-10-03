@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from scripts.loading.db import get_connection
+from .database import get_connection
 from .router import players
 from .router import teams
 from .router import leaderboard
