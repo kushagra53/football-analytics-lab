@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from scripts.loading.db import get_connection
+from ..database import get_connection
 from psycopg2.extras import RealDictCursor
 
 router= APIRouter(prefix="/teams")
