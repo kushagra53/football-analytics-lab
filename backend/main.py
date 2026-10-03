@@ -29,13 +29,11 @@ def health_check():
     try:
         conn = get_connection()
         conn.close()
-
         return {"status": "healthy"}
-
-    except Exception:
+    except Exception as e:
         raise HTTPException(
             status_code=503,
-            detail="Database unavailable"
+            detail=str(e)
         )
 
 
